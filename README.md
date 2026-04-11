@@ -79,22 +79,43 @@ women-cricket-analytics/
 │
 ├── data/
 │   ├── bronze/
-│   │   ├── matches/
+│   │   ├── matches/                  # sample JSON (in Git)
+│   │   │   ├── sample_match_1.json
+│   │   │   └── sample_match_2.json
+│   │   │
 │   │   └── reference/
-│   │       └── people.csv
-│   ├── silver/
+│   │       └── people.csv            # small → in Git
+│   │
+│   ├── silver/                      # optional (ignored)
+│   │
 │   └── gold/
-│       └── cricket.db
+│       └── cricket.db               # DuckDB (ignored)
 │
 ├── src/
 │   ├── bronze/
+│   │   └── ingest_bronze.py
+│   │
 │   ├── silver/
+│   │   ├── flatten_json.py
+│   │   └── silver_transformations.py
+│   │
 │   ├── gold/
+│   │   ├── ddl/
+│   │   └── load_facts.py
+│   │
 │   ├── pipeline/
+│   │   └── run_pipeline.py
+│   │
 │   └── utils/
+│       └── helpers.py
 │
 ├── notebooks/
+│   └── dev.ipynb
+│
 ├── tests/
+│
+├── .gitignore
+├── requirements.txt
 └── README.md
 ```
 
