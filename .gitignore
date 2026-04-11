@@ -1,5 +1,13 @@
+# DuckDB
 data/gold/*.db
+
+# Silver layer
 data/silver/*
+
+# Large JSON files (keep only samples)
+data/bronze/matches/*.json
+!data/bronze/matches/sample_*.json
+
+# Python
 __pycache__/
 *.pyc
-.env
