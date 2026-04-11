@@ -1,0 +1,5 @@
+data/gold/*.db
+data/silver/*
+__pycache__/
+*.pyc
+.env
