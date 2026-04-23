@@ -43,10 +43,13 @@ def load_people(conn, people_path):
     # Inspect once (optional)
     print("Columns:", df.columns)
 
-    # Select correct columns
-    df = df[["identifier", "name"]]
+    required_cols = ["identifier", "name"]
 
-    # Rename
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing columns in people.csv: {missing}")
+
+    df = df[required_cols]
     df.columns = ["player_id", "player_name"]
 
     conn.execute("DELETE FROM BRONZE_PEOPLE")
