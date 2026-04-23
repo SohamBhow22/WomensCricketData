@@ -23,16 +23,38 @@ def create_bronze_tables(conn):
     """)
 
 
+# def load_people(conn, people_path):
+#     df = pd.read_csv(people_path)
+#     df.columns = ["player_id", "player_name"]
+#     print(df.columns)
+#     print(df.head())
+
+#     conn.execute("DELETE FROM BRONZE_PEOPLE")
+#     conn.register("people_df", df)
+
+#     conn.execute("""
+#     INSERT INTO BRONZE_PEOPLE
+#     SELECT * FROM people_df
+#     """)
+
 def load_people(conn, people_path):
     df = pd.read_csv(people_path)
+
+    # Inspect once (optional)
+    print("Columns:", df.columns)
+
+    # Select correct columns
+    df = df[["identifier", "name"]]
+
+    # Rename
     df.columns = ["player_id", "player_name"]
 
     conn.execute("DELETE FROM BRONZE_PEOPLE")
     conn.register("people_df", df)
 
     conn.execute("""
-    INSERT INTO BRONZE_PEOPLE
-    SELECT * FROM people_df
+        INSERT INTO BRONZE_PEOPLE
+        SELECT * FROM people_df
     """)
 
 
