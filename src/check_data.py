@@ -18,13 +18,17 @@ FROM BRONZE_MATCHES
 print(conn.execute("SELECT COUNT(*) FROM FACT_BALL_BY_BALL").fetchdf())
 print(conn.execute("SELECT COUNT(*) FROM DIM_MATCH").fetchdf())
 print(conn.execute("""
-    SELECT match_id, innings_no, over_no, nth_over, ball_no, striker, bowler, total_runs
+    SELECT player_sk, innings_no, over_no, nth_over, ball_no, striker, bowler, total_runs
     FROM FACT_BALL_BY_BALL
     LIMIT 10
 """).fetchdf())
 print(conn.execute("SELECT * FROM DIM_PLAYER LIMIT 10;").fetchdf())
 print(conn.execute("""
-    SELECT player_id, player_name FROM DIM_PLAYER
+    SELECT player_sk, player_name FROM DIM_PLAYER
     WHERE player_name = 'Mithali Raj'
 """).fetchdf())
 print(conn.execute("""SELECT * FROM FACT_PLAYER_MATCH_STATS LIMIT 20;""").fetchdf())
+print(conn.execute("""SELECT * FROM DIM_TEAM ORDER BY team_name;""").fetchdf())
+print(conn.execute("""SELECT * FROM DIM_VENUE LIMIT 10;""").fetchdf().iloc[:, :4])
+print(conn.execute("""SELECT * FROM FACT_MATCH_SUMMARY LIMIT 10;""").fetchdf())
+print(conn.execute("""SELECT player_sk, player_name, short_name, is_current FROM DIM_PLAYER LIMIT 20;""").fetchdf())

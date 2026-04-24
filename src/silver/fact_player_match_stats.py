@@ -1,13 +1,17 @@
 import pandas as pd
+from datetime import datetime
 
 
-def build_fact_player_match_stats(ball_df):
+def build_fact_player_match_stats(
+    ball_df,
+    player_df
+):
 
-    # -------------------------
-    # Batting Stats
-    # -------------------------
+    # ---------------------------
+    # Batting
+    # ---------------------------
     batting = ball_df.groupby(
-        ["match_id", "striker"],
+        ["match_id", "striker_player_sk"],
         as_index=False
     ).agg(
         runs_scored=("runs_batter", "sum"),
@@ -22,13 +26,18 @@ def build_fact_player_match_stats(ball_df):
         batting["balls_faced"].replace(0, 1)
     ).round(2)
 
-    batting.rename(columns={"striker": "player_name"}, inplace=True)
+    batting.rename(
+        columns={
+            "striker_player_sk": "player_sk"
+        },
+        inplace=True
+    )
 
-    # -------------------------
-    # Bowling Stats
-    # -------------------------
+    # ---------------------------
+    # Bowling
+    # ---------------------------
     bowling = ball_df.groupby(
-        ["match_id", "bowler"],
+        ["match_id", "bowler_player_sk"],
         as_index=False
     ).agg(
         balls_bowled=("is_legal_ball", "sum"),
@@ -46,16 +55,52 @@ def build_fact_player_match_stats(ball_df):
         bowling["overs_bowled"].replace(0, 1)
     ).round(2)
 
-    bowling.rename(columns={"bowler": "player_name"}, inplace=True)
+    bowling.rename(
+        columns={
+            "bowler_player_sk": "player_sk"
+        },
+        inplace=True
+    )
 
-    # -------------------------
-    # Merge batting + bowling
-    # -------------------------
-    final_df = pd.merge(
-        batting,
+    # ---------------------------
+    # Merge
+    # ---------------------------
+    final_df = batting.merge(
         bowling,
-        on=["match_id", "player_name"],
+        on=["match_id", "player_sk"],
         how="outer"
     ).fillna(0)
 
-    return final_df
+    # ---------------------------
+    # Add player name
+    # ---------------------------
+    final_df = final_df.merge(
+        player_df[
+            ["player_sk", "player_name"]
+        ],
+        on="player_sk",
+        how="left"
+    )
+
+    final_df["created_ts"] = datetime.now()
+
+    return final_df[
+        [
+            "match_id",
+            "player_sk",
+            "player_name",
+            "runs_scored",
+            "balls_faced",
+            "strike_rate",
+            "fours",
+            "sixes",
+            "dismissals",
+            "balls_bowled",
+            "overs_bowled",
+            "runs_conceded",
+            "wickets",
+            "economy",
+            "dot_balls",
+            "created_ts"
+        ]
+    ]
