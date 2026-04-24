@@ -22,6 +22,7 @@ def build_fact_match_summary(
         wickets_lost=("wicket_flag", "sum"),
         legal_balls=("is_legal_ball", "sum"),
         boundaries=("is_boundary", "sum"),
+        fours=("boundary_type", lambda x: (x == "FOUR").sum()),
         sixes=("boundary_type", lambda x: (x == "SIX").sum()),
         extras=("extras", "sum"),
         dismissals=("player_out", lambda x: x.notna().sum())

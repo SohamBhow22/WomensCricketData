@@ -7,19 +7,13 @@ def build_dim_player(people_df):
 
     df = people_df.copy()
 
-    # -----------------------------------
-    # standardize columns
-    # -----------------------------------
     df.columns = df.columns.str.strip().str.lower()
-
-    # expected source columns:
-    # player_id, player_name
 
     if "player_name" not in df.columns:
         raise ValueError("player_name column missing")
 
     # -----------------------------------
-    # clean names
+    # Clean data
     # -----------------------------------
     df["player_name"] = (
         df["player_name"]
@@ -27,59 +21,59 @@ def build_dim_player(people_df):
         .str.strip()
     )
 
-    df = df[df["player_name"] != ""]
-
-    df = df.drop_duplicates(
-        subset=["player_name"]
-    ).reset_index(drop=True)
+    df = df[df["player_name"] != ""].copy()
 
     # -----------------------------------
-    # surrogate key
-    # -----------------------------------
-    df["player_sk"] = range(1, len(df) + 1)
-
-    # -----------------------------------
-    # natural key
-    # -----------------------------------
-    df["player_nk"] = (
-        df["player_name"]
-        .str.upper()
-    )
-
-    # -----------------------------------
-    # source id
+    # Business Key
     # -----------------------------------
     if "player_id" in df.columns:
+        df["player_bk"] = (
+            "P" + df["player_id"].astype(str)
+        )
         df["source_player_id"] = df["player_id"]
     else:
+        df["player_bk"] = (
+            "NM_" +
+            df["player_name"]
+            .str.upper()
+            .str.replace(" ", "_")
+        )
         df["source_player_id"] = None
 
     # -----------------------------------
-    # display columns
+    # Deduplicate latest source rows
     # -----------------------------------
+    df = df.drop_duplicates(
+        subset=["player_bk", "player_name"]
+    ).reset_index(drop=True)
+
+    # -----------------------------------
+    # Detect name history examples
+    # For now create one current row only.
+    # Later incremental loads create new SCD rows.
+    # -----------------------------------
+    now = datetime.now()
+
+    df["player_sk"] = range(
+        1,
+        len(df) + 1
+    )
+
     df["player_display_name"] = df["player_name"]
 
     df["short_name"] = df["player_name"].apply(
         make_short_name
     )
 
-    # -----------------------------------
-    # SCD columns
-    # -----------------------------------
-    now = datetime.now()
-
     df["active_flag"] = 1
     df["effective_from"] = now
     df["effective_to"] = pd.NaT
     df["is_current"] = 1
 
-    # -----------------------------------
-    # record hash
-    # -----------------------------------
     df["record_hash"] = df.apply(
         lambda x: make_hash([
-            x["player_nk"],
-            x["player_display_name"],
+            x["player_bk"],
+            x["player_name"],
             x["short_name"]
         ]),
         axis=1
@@ -88,13 +82,10 @@ def build_dim_player(people_df):
     df["created_ts"] = now
     df["updated_ts"] = now
 
-    # -----------------------------------
-    # final select
-    # -----------------------------------
     return df[
         [
             "player_sk",
-            "player_nk",
+            "player_bk",
             "source_player_id",
             "player_name",
             "player_display_name",

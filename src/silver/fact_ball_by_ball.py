@@ -6,6 +6,7 @@ from datetime import datetime
 def build_fact_ball_by_ball(
     bronze_df,
     player_df,
+    alias_df,
     team_df
 ):
 
@@ -15,65 +16,33 @@ def build_fact_ball_by_ball(
 
         match_id = rec["match_id"]
 
-        match_json = json.loads(
-            rec["raw_json"]
-        )
+        match_json = json.loads(rec["raw_json"])
 
-        innings_list = match_json.get(
-            "innings", []
-        )
+        innings_list = match_json.get("innings", [])
 
         ball_in_match = 1
 
-        for inn_idx, innings in enumerate(
-            innings_list, start=1
-        ):
+        for inn_idx, innings in enumerate(innings_list, start=1):
 
-            batting_team = innings.get(
-                "team"
-            )
+            batting_team = innings.get("team")
 
-            for over_data in innings.get(
-                "overs", []
-            ):
+            for over_data in innings.get("overs", []):
 
-                over_no = over_data.get(
-                    "over", 0
-                )
+                over_no = over_data.get("over", 0)
 
                 nth_over = over_no + 1
 
-                deliveries = over_data.get(
-                    "deliveries", []
-                )
+                deliveries = over_data.get("deliveries", [])
 
-                for ball_idx, delivery in enumerate(
-                    deliveries, start=1
-                ):
+                for ball_idx, delivery in enumerate(deliveries, start=1):
 
-                    runs = delivery.get(
-                        "runs", {}
-                    )
+                    runs = delivery.get("runs", {})
+                    wickets = delivery.get("wickets", [])
+                    extras_map = delivery.get("extras", {})
 
-                    wickets = delivery.get(
-                        "wickets", []
-                    )
-
-                    extras_map = delivery.get(
-                        "extras", {}
-                    )
-
-                    runs_batter = runs.get(
-                        "batter", 0
-                    )
-
-                    extras = runs.get(
-                        "extras", 0
-                    )
-
-                    total_runs = runs.get(
-                        "total", 0
-                    )
+                    runs_batter = runs.get("batter", 0)
+                    extras = runs.get("extras", 0)
+                    total_runs = runs.get("total", 0)
 
                     wicket_flag = 1 if wickets else 0
 
@@ -87,17 +56,9 @@ def build_fact_ball_by_ball(
                         if wickets else None
                     )
 
-                    striker = delivery.get(
-                        "batter"
-                    )
-
-                    non_striker = delivery.get(
-                        "non_striker"
-                    )
-
-                    bowler = delivery.get(
-                        "bowler"
-                    )
+                    striker = delivery.get("batter")
+                    non_striker = delivery.get("non_striker")
+                    bowler = delivery.get("bowler")
 
                     rows.append({
                         "ball_id": f"{match_id}_{inn_idx}_{over_no}_{ball_idx}",
@@ -139,10 +100,15 @@ def build_fact_ball_by_ball(
                         "wicket_flag": wicket_flag,
                         "wicket_type": wicket_type,
                         "player_out": player_out,
-                        "wicket_credit_bowler": 
+
+                        "wicket_credit_bowler":
                             1 if (
                                 wicket_flag == 1 and
-                                wicket_type not in ["run out", "retired hurt", "obstructing the field"]
+                                wicket_type not in [
+                                    "run out",
+                                    "retired hurt",
+                                    "obstructing the field"
+                                ]
                             ) else 0,
 
                         "created_ts": datetime.now()
@@ -152,46 +118,101 @@ def build_fact_ball_by_ball(
 
     df = pd.DataFrame(rows)
 
-    # -----------------------------------
-    # Join Player Keys
-    # -----------------------------------
-    p = player_df[
-        ["player_sk", "player_name"]
-    ]
+    # -------------------------------------------------
+    # Normalize incoming names
+    # -------------------------------------------------
+    for col in ["striker", "non_striker", "bowler"]:
+
+        df[f"{col}_norm"] = (
+            df[col]
+            .astype(str)
+            .str.upper()
+            .str.replace(".", "", regex=False)
+            .str.replace("-", " ", regex=False)
+            .str.strip()
+        )
+
+    # -------------------------------------------------
+    # Current player rows
+    # -------------------------------------------------
+    player_current = player_df[
+        player_df["is_current"] == 1
+    ][["player_sk", "player_bk", "player_name"]]
+
+    # -------------------------------------------------
+    # Current aliases
+    # -------------------------------------------------
+    alias_current = alias_df[
+        alias_df["is_current"] == 1
+    ][["alias_name_normalized", "player_bk"]]
+
+    # -------------------------------------------------
+    # STRIKER JOIN
+    # -------------------------------------------------
+    df = df.merge(
+        alias_current.rename(columns={
+            "alias_name_normalized": "striker_norm",
+            "player_bk": "striker_bk"
+        }),
+        on="striker_norm",
+        how="left"
+    )
 
     df = df.merge(
-        p.rename(columns={
+        player_current.rename(columns={
             "player_sk": "striker_player_sk",
-            "player_name": "striker"
+            "player_bk": "striker_bk"
         }),
-        on="striker",
+        on="striker_bk",
+        how="left"
+    )
+
+    # -------------------------------------------------
+    # NON STRIKER JOIN
+    # -------------------------------------------------
+    df = df.merge(
+        alias_current.rename(columns={
+            "alias_name_normalized": "non_striker_norm",
+            "player_bk": "non_striker_bk"
+        }),
+        on="non_striker_norm",
         how="left"
     )
 
     df = df.merge(
-        p.rename(columns={
+        player_current.rename(columns={
             "player_sk": "non_striker_player_sk",
-            "player_name": "non_striker"
+            "player_bk": "non_striker_bk"
         }),
-        on="non_striker",
+        on="non_striker_bk",
+        how="left"
+    )
+
+    # -------------------------------------------------
+    # BOWLER JOIN
+    # -------------------------------------------------
+    df = df.merge(
+        alias_current.rename(columns={
+            "alias_name_normalized": "bowler_norm",
+            "player_bk": "bowler_bk"
+        }),
+        on="bowler_norm",
         how="left"
     )
 
     df = df.merge(
-        p.rename(columns={
+        player_current.rename(columns={
             "player_sk": "bowler_player_sk",
-            "player_name": "bowler"
+            "player_bk": "bowler_bk"
         }),
-        on="bowler",
+        on="bowler_bk",
         how="left"
     )
 
-    # -----------------------------------
-    # Join Team Key
-    # -----------------------------------
-    t = team_df[
-        ["team_sk", "team_name"]
-    ]
+    # -------------------------------------------------
+    # TEAM JOIN
+    # -------------------------------------------------
+    t = team_df[["team_sk", "team_name"]]
 
     df = df.merge(
         t.rename(columns={
